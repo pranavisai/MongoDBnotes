@@ -1,0 +1,201 @@
+Authentication and Authorization MongoDB:
+
+
+Authentication: verifies the identity of a user.
+Authorization: determines the verified users access to resources and operations
+
+
+vi mongod.conf -> to open the configuration file mongod.conf
+
+
+security:
+  authorization: enabled -> to provide security for both authentication and authorization within the configuration file.
+Opening the file mongod.conf:
+vi mongod.conf
+
+
+The new section of the configuration file that enables authentication and authorization:
+security:
+  authorization: enabled
+
+
+Shutting down the server:
+mongo admin --port 27000 --eval 'db.shutdownServer()'
+
+
+Restarting the server with mongod.conf:
+mongod -f mongod.conf
+
+
+Connecting to MongoDB on port 27001:
+mongo --port 27001
+
+
+Running a find() query on the accounts database:
+db.accounts.find( {}, { name: 1, ssn: 1 } )
+ 
+ 
+ 
+ 
+ 
+ 
+Creating first user:
+For a DB that has authorization. It only permits one user creation without authentication. This is how we create the first user.
+Printing out the configuration file:
+cat ~/workspace/mongod.conf
+
+Connecting to MongoDB:
+mongo --host localhost:27001
+
+Retrieving all users:
+db.getUsers()
+
+Switching to the admin database:
+use admin
+
+Creating the user administrator:
+db.createUser({
+  user: "globalAdminUser",
+  pwd: "5xd49$4%0bef#6c&b*d",
+  roles: [ { role: "userAdminAnyDatabase", db: "admin" } ]
+});
+
+Authenticating as the user administrator:
+db.auth( "globalAdminUser", "5xd49$4%0bef#6c&b*d" )
+Creating a cluster administrator:
+db.createUser({
+  user: "clusterAdminAny",
+  pwd: "a*0f7@2c6#b4f%$d6c^c7d",
+  roles: [ "clusterAdmin" ]});
+use admin
+db.createUser({
+  user: "globalAdminUser",
+  pwd: "5xd49$4%0bef#6c&b*d",
+  roles: [ {
+    role: "userAdminAnyDatabase",
+    db: "admin"
+  } ]
+});
+
+userAdminAnyDatabase : Privilege to modify and create any users on any database in the deployment. Only available in the admin database and hence need to be connected to the admin database to provide this role.
+
+Separately authenticate with credentials:
+db.auth( "globalAdminUser", "5xd49$4%0bef#6c&b*d" )
+
+“Anydatabase” endings are usually admin roles.
+
+
+use admin
+db.createUser({
+  user: "inventoryAdminUser",
+  pwd: "f46*5$2a3%ac&43f@17b",
+  roles: [
+    { role: "userAdmin", db: "inventory" }
+  ]
+});
+
+Modify users but only on one database. Here it is the inventory database. userAdmin is available on any database. 
+
+db.grantRolesToUser(
+   "inventoryAdminUser",
+   [ { role: "userAdmin", db: "inventory" } ]
+)
+
+This is to grant roles to users. inventoryAdminUser is the name of the user here.
+
+
+
+
+
+use admin
+db.createUser({
+{
+user: "emailReportsUser",
+pwd: "37f!98e1*c5%36&f4c",
+  roles: [
+    { role: "read", db: "emailReports" }
+  ]
+});
+
+db.grantRolesToUser(
+   "emailsAdmin",
+   [ { role: "readWrite", db: "emails" } ]
+)
+
+
+Principle of least Privilege: users should have the least privilege required for their intended purpose.
+
+db.createRole(
+ {
+   role: "grantRevokeRolesAnyDatabase",
+   privileges: [
+     {
+        resource: { db: "", collection: "" },
+        actions: [ "grantRole", "revokeRole", "viewRole" ]
+     }
+   ],
+   roles: []
+ }
+)
+
+This is to create roles. 
+resource: { db: "", collection: "" } -> this means access over all databases and collections. If a specific database is specified and the collection is left empty then the access is over all the collections in the database. 
+
+
+
+db.getRoles() -> to display all the roles.
+
+
+
+
+
+
+
+use products
+db.changeUserPassword("readWriteInventoryUser", "6c%dbe&7dc!ee1#d")
+
+With this we can change the user password directly.
+
+Link: https://www.mongodb.com/docs/manual/reference/method/db.changeUserPassword/
+
+
+
+Internal Authentication: This verifies the identity of one MongoDB instance to another.
+
+
+
+
+
+SCRAM Internal Authentication: This is a default authentication mechanism and uses username and password as credentials.
+
+A key file is a single file created for each replica set and that is what is authenticated to identify the replica. It is copied on each replica.
+
+A key file is a file with a very long password.
+
+The key file option will be kept on the configuration file. This will implicitly switch on authentication for mongoDB users and the replicas in the set.
+
+security:
+  keyFile: /var/mongodb/pki/1/mongod-keyfile -> for configuration file
+
+rs.initiate() -> to initiate the replica set.
+To start mongoDB with configuration file: 
+
+mongod -f <configuration-file-name>.conf
+
+X.509 -> alternative to SCRAM.
+
+x.509 internal authentication uses x.509 certificates as credentials instead of key files. Primarily used for enabling transport layer security between two servers.
+
+In this case, the two servers are the MongoDB server and the user connecting to MongoDB.
+
+TLS is an encryption mechanism that scrambles data while it's being sent over a network.
+
+By scrambling the data while it's in transit, outside intruders cannot understand what is being communicated.
+
+By using x.509 authentication, MongoDB can verify that both authentication and encryption are being used.
+
+When using x.509 internal authentication, each replica set member contains an x.509 certificate which is used to authenticate to the other members.
+
+This is different from SCRAM internal authentication, where the credential is a key file that is shared between all the members.
+
+And, in addition to the authentication happening internally, TLS is used for encryption between each member of this replica set.
